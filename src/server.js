@@ -9,9 +9,9 @@ const app = express();
 
 // Enable CORS for requests from http://localhost:3001
 app.use(cors({
-    origin: 'http://localhost:3001',
+    origin: 'http://localhost:4000',
     credentials: true // Required for sessions with cookies
-  }));
+}));
 
 app.use(express.json());
 app.use(session({
