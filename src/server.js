@@ -30,6 +30,16 @@ const requireTeacher = (req, res, next) => {
     }
 };
 
+app.get('/rooms', (req, res) => {
+    db.all('SELECT id, name FROM rooms', (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json(rows);
+    });
+});
+
 // Register caregiver and kid (updated to include room_id)
 app.post('/register', (req, res) => {
     const { caregiver_name, caregiver_contact, kid_name, room_id, family_code } = req.body;
