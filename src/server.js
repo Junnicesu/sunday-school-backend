@@ -50,7 +50,7 @@ app.post('/register', (req, res) => {
 
     // Find or create caregiver
     let caregiver = db.prepare('SELECT id FROM caregivers WHERE contact_number = ?').get(caregiver_contact);
-    if (!caregiver) {
+    if (!caregiver || Object.keys(caregiver).length ==0) {
         const result = db.prepare('INSERT INTO caregivers (name, contact_number) VALUES (?, ?)').run(caregiver_name, caregiver_contact);
         caregiver = { id: result.lastInsertRowid };
     } else {
@@ -60,7 +60,7 @@ app.post('/register', (req, res) => {
     if (family_code) {
         // Link to existing kid
         const kid = db.prepare('SELECT id FROM kids WHERE family_code = ?').get(family_code);
-        if (!kid) {
+        if (!kid && Object.keys(kid).length !=0) {
             return res.status(404).json({ error: 'Family code not found' });
         }
         db.prepare('INSERT OR IGNORE INTO kid_caregiver (kid_id, caregiver_id) VALUES (?, ?)').run(kid.id, caregiver.id);
