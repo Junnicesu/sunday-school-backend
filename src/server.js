@@ -25,7 +25,18 @@ app.use(session({
 const util = require('util');
 const dbGet = util.promisify(db.get.bind(db));
 const dbAll = util.promisify(db.all.bind(db));
-const dbRun = util.promisify(db.run.bind(db));
+// Custom dbRun function
+const dbRun = (sql, params) => {
+    return new Promise((resolve, reject) => {
+        db.run(sql, params, function (err) {
+            if (err) {
+                reject(err);
+            } else {
+                resolve({ lastID: this.lastID, changes: this.changes });
+            }
+        });
+    });
+};
 
 // Middleware to require teacher authentication
 const requireTeacher = (req, res, next) => {
@@ -236,26 +247,22 @@ app.get('/attendance/:room_id', requireTeacher, async (req, res) => {
     }
 });
 
-// QR code generation (includes action)
-app.get('/qr/:room_id/:action', requireTeacher, async (req, res) => {
-    const { room_id, action } = req.params;
-    if (action !== 'in' && action !== 'out') {
-        return res.status(400).json({ error: 'Invalid action' });
-    }
-
+// QR code generation
+app.get('/qr/:room_id', requireTeacher, async (req, res) => {
+    const { room_id } = req.params;
     try {
-        const url = await new Promise((resolve, reject) => {
-            qr.toDataURL(`room:${room_id}:action:${action}`, (err, url) => {
+        const url = `http://localhost:4000/room/${room_id}`; // Single URL per room
+        const qrCodeUrl = await new Promise((resolve, reject) => {
+            qr.toDataURL(url, (err, url) => {
                 if (err) reject(err);
                 else resolve(url);
             });
         });
-
         res.send(`
             <html>
                 <body>
-                    <h1>QR Code for Room ${room_id} - Sign ${action}</h1>
-                    <img src="${url}" alt="QR Code for Room ${room_id} - Sign ${action}" />
+                    <h1>QR Code for Room ${room_id}</h1>
+                    <img src="${qrCodeUrl}" alt="QR Code for Room ${room_id}" />
                     <button onclick="window.print()">Print</button>
                 </body>
             </html>
