@@ -1,5 +1,12 @@
+const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
-const db = new sqlite3.Database('sunday_school.db');
+const db = new sqlite3.Database(path.join(__dirname, '..', 'sunday_school.db'), (err) => {
+    if (err) {
+        console.error('Database connection error:', err);
+    } else {
+        console.log('Database connected:', path.join(__dirname, '..', 'sunday_school.db'));
+    }
+});
 
 db.serialize(() => {
     // Caregivers table
@@ -71,8 +78,28 @@ db.serialize(() => {
     const bcrypt = require('bcrypt');
     const passwordHash = bcrypt.hashSync('teacherpass', 10);
     db.prepare('INSERT OR IGNORE INTO teachers (username, password_hash) VALUES ("teacher", ?)').run(passwordHash);
+
+    // Asynchronous query to confirm seeding
+    db.all('SELECT * FROM rooms', (err, rows) => {
+        if (err) {
+            console.error('Async query error during init:', err.message);
+        } else {
+            console.log('Rooms after seeding (async):', rows);
+        }
+    });
+
+    // Test query (async)
+    db.get('SELECT 1', (err, row) => {
+        if (err) {
+            console.error('Test query error:', err.message);
+        } else {
+            console.log('Test query (async):', row);
+        }
+    });
+
 });
 
 module.exports = db;
 
-console.log(db.prepare("SELECT * FROM rooms").all());
+
+console.log('Database file:', db.filename);
