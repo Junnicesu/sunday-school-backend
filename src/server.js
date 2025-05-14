@@ -223,21 +223,24 @@ app.post('/teacher/login', async (req, res) => {
 // Get real-time attendance for a room
 app.get('/attendance/:room_id', requireTeacher, async (req, res) => {
     const { room_id } = req.params;
-
     try {
         const attendance = await dbAll(`
-            SELECT k.id, k.name
+            SELECT 
+                k.id, 
+                k.name AS kid_name,
+                c.name AS caregiver_name,
+                c.contact_number AS caregiver_contact,
+                (SELECT r.action 
+                 FROM sign_in_out_records r 
+                 WHERE r.kid_id = k.id 
+                 AND r.room_id = ? 
+                 AND DATE(r.timestamp) = DATE('now') 
+                 ORDER BY r.timestamp DESC 
+                 LIMIT 1) AS last_action
             FROM kids k
-            WHERE EXISTS (
-                SELECT 1 FROM sign_in_out_records r
-                WHERE r.kid_id = k.id AND r.room_id = ?
-                AND DATE(r.timestamp) = DATE('now')
-                AND r.timestamp = (
-                    SELECT MAX(timestamp) FROM sign_in_out_records
-                    WHERE kid_id = k.id AND room_id = ? AND DATE(timestamp) = DATE('now')
-                )
-                AND r.action = 'in'
-            )`,
+            LEFT JOIN kid_caregiver kc ON k.id = kc.kid_id
+            LEFT JOIN caregivers c ON kc.caregiver_id = c.id
+            WHERE k.room_id = ?`,
             [room_id, room_id]
         );
         res.json(attendance);
