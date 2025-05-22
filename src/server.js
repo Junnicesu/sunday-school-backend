@@ -7,9 +7,9 @@ const bcrypt = require('bcrypt');
 const cors = require('cors');
 const app = express();
 
-// Enable CORS for requests from http://localhost:4000
+// Enable CORS for requests from http://sundayschool.gpc.org:4000
 app.use(cors({
-    origin: 'http://localhost:4000',
+    origin: 'http://sundayschool.gpc.org:4000',
     credentials: true
 }));
 
@@ -240,8 +240,15 @@ app.get('/attendance/:room_id', requireTeacher, async (req, res) => {
             FROM kids k
             LEFT JOIN kid_caregiver kc ON k.id = kc.kid_id
             LEFT JOIN caregivers c ON kc.caregiver_id = c.id
-            WHERE k.room_id = ?`,
-            [room_id, room_id]
+            WHERE k.room_id = ?
+            AND EXISTS (
+                SELECT 1 
+                FROM sign_in_out_records r2 
+                WHERE r2.kid_id = k.id 
+                AND r2.room_id = ? 
+                AND DATE(r2.timestamp) = DATE('now')
+            )`,
+            [room_id, room_id, room_id]
         );
         res.json(attendance);
     } catch (err) {
@@ -254,7 +261,7 @@ app.get('/attendance/:room_id', requireTeacher, async (req, res) => {
 app.get('/qr/:room_id', requireTeacher, async (req, res) => {
     const { room_id } = req.params;
     try {
-        const url = `http://localhost:4000/room/${room_id}`; // Single URL per room
+        const url = `http://sundayschool.gpc.org:4000/room/${room_id}`; // Single URL per room
         const qrCodeUrl = await new Promise((resolve, reject) => {
             qr.toDataURL(url, (err, url) => {
                 if (err) reject(err);
