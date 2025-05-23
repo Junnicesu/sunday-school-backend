@@ -71,12 +71,14 @@ db.serialize(() => {
     `);
 
     // Seed initial data
-    db.prepare('INSERT OR IGNORE INTO rooms (id, name) VALUES (1, "Room A")').run();
-    db.prepare('INSERT OR IGNORE INTO rooms (id, name) VALUES (2, "Room B")').run();
+    // db.prepare('INSERT OR IGNORE INTO rooms (id, name) VALUES (0, "Acorns")').run();
+    db.prepare('INSERT OR IGNORE INTO rooms (id, name) VALUES (1, "Seedlings")').run();
+    db.prepare('INSERT OR IGNORE INTO rooms (id, name) VALUES (2, "Saplings")').run();
+    db.prepare('INSERT OR IGNORE INTO rooms (id, name) VALUES (3, "Oaks")').run();
 
     // Seed a teacher account (username: "teacher", password: "teacherpass")
     const bcrypt = require('bcrypt');
-    const passwordHash = bcrypt.hashSync('teacherpass', 10);
+    const passwordHash = bcrypt.hashSync('Gpc@2025', 8);
     db.prepare('INSERT OR IGNORE INTO teachers (username, password_hash) VALUES ("teacher", ?)').run(passwordHash);
 
     // Asynchronous query to confirm seeding
