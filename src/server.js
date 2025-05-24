@@ -114,7 +114,7 @@ app.get('/kids', async (req, res) => {
         }
 
         const kids = await dbAll(`
-            SELECT k.id, k.name, r.id AS room_id, r.name AS room_name
+            SELECT k.id, k.name, k.family_code, r.id AS room_id, r.name AS room_name
             FROM kids k
             JOIN kid_caregiver kc ON k.id = kc.kid_id
             JOIN rooms r ON k.room_id = r.id
