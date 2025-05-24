@@ -57,7 +57,8 @@ db.serialize(() => {
             action TEXT NOT NULL,
             timestamp TEXT NOT NULL,
             FOREIGN KEY (kid_id) REFERENCES kids(id),
-            FOREIGN KEY (room_id) REFERENCES rooms(id)
+            FOREIGN KEY (room_id) REFERENCES rooms(id),
+            FOREIGN KEY (caregiver_id) REFERENCES caregivers(id)
         )
     `);
 

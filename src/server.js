@@ -167,23 +167,40 @@ app.post('/sign', async (req, res) => {
     }
 
     try {
-        const caregiver = await dbGet('SELECT id FROM caregivers WHERE contact_number = ?', [caregiver_contact]);
-        if (!caregiver) {
-            return res.status(404).json({ error: 'Caregiver not found' });
-        }
-
         const room = await dbGet('SELECT name FROM rooms WHERE id = ?', [room_id]);
         if (!room) {
             return res.status(404).json({ error: 'Room not found' });
+        }        
+
+        // Step 1: Look up the caregiver_id based on caregiver_contact
+        const caregiver = await dbGet(
+            'SELECT id FROM caregivers WHERE contact_number = ?',
+            [caregiver_contact]
+        );
+        if (!caregiver) {
+            return res.status(400).json({ error: 'Caregiver not found' });
+        }
+        const caregiver_id = caregiver.id;
+
+        // Step 2: Validate that the caregiver is associated with each kid
+        for (const kid_id of kid_ids) {
+            const association = await dbGet(
+                'SELECT 1 FROM kid_caregiver WHERE kid_id = ? AND caregiver_id = ?',
+                [kid_id, caregiver_id]
+            );
+            if (!association) {
+                return res.status(403).json({ error: `Caregiver not authorized to sign in/out kid with ID ${kid_id}` });
+            }
         }
 
+        // Step 3: Insert sign-in/out records for each kid
         const actions = [];
         for (const kid_id of kid_ids) {
             const kid = await dbGet('SELECT name FROM kids WHERE id = ? AND room_id = ?', [kid_id, room_id]);
             if (kid) {
                 await dbRun(
-                    'INSERT INTO sign_in_out_records (kid_id, room_id, action, timestamp) VALUES (?, ?, ?, datetime("now"))',
-                    [kid_id, room_id, action]
+                    'INSERT INTO sign_in_out_records (kid_id, room_id, caregiver_id, action) VALUES (?, ?, ?, ?)',
+                    [kid_id, room_id, caregiver_id, action]
                 );
                 actions.push(`${kid.name} has been signed ${action} of ${room.name}`);
             }
@@ -228,18 +245,50 @@ app.get('/attendance/:room_id', requireTeacher, async (req, res) => {
             SELECT 
                 k.id, 
                 k.name AS kid_name,
-                c.name AS caregiver_name,
-                c.contact_number AS caregiver_contact,
                 (SELECT r.action 
                  FROM sign_in_out_records r 
                  WHERE r.kid_id = k.id 
                  AND r.room_id = ? 
                  AND DATE(r.timestamp) = DATE('now') 
                  ORDER BY r.timestamp DESC 
-                 LIMIT 1) AS last_action
+                 LIMIT 1) AS last_action,
+                (SELECT c2.name 
+                 FROM sign_in_out_records r 
+                 LEFT JOIN caregivers c2 ON r.caregiver_id = c2.id
+                 WHERE r.kid_id = k.id 
+                 AND r.room_id = ? 
+                 AND DATE(r.timestamp) = DATE('now') 
+                 AND r.action = 'in'
+                 ORDER BY r.timestamp DESC 
+                 LIMIT 1) AS last_signin_caregiver_name,
+                (SELECT c2.contact_number 
+                 FROM sign_in_out_records r 
+                 LEFT JOIN caregivers c2 ON r.caregiver_id = c2.id
+                 WHERE r.kid_id = k.id 
+                 AND r.room_id = ? 
+                 AND DATE(r.timestamp) = DATE('now') 
+                 AND r.action = 'in'
+                 ORDER BY r.timestamp DESC 
+                 LIMIT 1) AS last_signin_caregiver_contact,
+                (SELECT c2.name 
+                 FROM sign_in_out_records r 
+                 LEFT JOIN caregivers c2 ON r.caregiver_id = c2.id
+                 WHERE r.kid_id = k.id 
+                 AND r.room_id = ? 
+                 AND DATE(r.timestamp) = DATE('now') 
+                 AND r.action = 'out'
+                 ORDER BY r.timestamp DESC 
+                 LIMIT 1) AS last_signout_caregiver_name,
+                (SELECT c2.contact_number 
+                 FROM sign_in_out_records r 
+                 LEFT JOIN caregivers c2 ON r.caregiver_id = c2.id
+                 WHERE r.kid_id = k.id 
+                 AND r.room_id = ? 
+                 AND DATE(r.timestamp) = DATE('now') 
+                 AND r.action = 'out'
+                 ORDER BY r.timestamp DESC 
+                 LIMIT 1) AS last_signout_caregiver_contact
             FROM kids k
-            LEFT JOIN kid_caregiver kc ON k.id = kc.kid_id
-            LEFT JOIN caregivers c ON kc.caregiver_id = c.id
             WHERE k.room_id = ?
             AND EXISTS (
                 SELECT 1 
@@ -248,7 +297,7 @@ app.get('/attendance/:room_id', requireTeacher, async (req, res) => {
                 AND r2.room_id = ? 
                 AND DATE(r2.timestamp) = DATE('now')
             )`,
-            [room_id, room_id, room_id]
+            [room_id, room_id, room_id, room_id, room_id, room_id, room_id]
         );
         res.json(attendance);
     } catch (err) {
