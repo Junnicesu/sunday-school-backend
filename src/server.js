@@ -5,11 +5,15 @@ const crypto = require('crypto');
 const qr = require('qrcode');
 const bcrypt = require('bcrypt');
 const cors = require('cors');
+const https = require('https');
+const fs = require('fs');
+const path = require('path');
+
 const app = express();
 
 // Enable CORS for requests from http://sundayschool.gpc.org:4000
 app.use(cors({
-    origin: 'http://sundayschool.gpc.org:4000',
+    origin: 'https://sundayschool.gpc.org:4000',
     credentials: true
 }));
 
@@ -18,7 +22,7 @@ app.use(session({
     secret: 'sunday_school_secret',
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: false } // Set to true if using HTTPS
+    cookie: { secure: true } // Set to true for HTTPS
 }));
 
 // Promisify db methods for async/await
@@ -47,7 +51,7 @@ const requireTeacher = (req, res, next) => {
     }
 };
 
-// Get all rooms
+// API routes remain unchanged (e.g., /rooms, /register, etc.)
 app.get('/rooms', async (req, res) => {
     try {
         const rows = await dbAll('SELECT id, name FROM rooms');
@@ -335,4 +339,21 @@ app.get('/qr/:room_id', requireTeacher, async (req, res) => {
     }
 });
 
-app.listen(3000, () => console.log('Server running on port 3000'));
+// Serve static frontend files from the build folder
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
+// Catch-all route for React Router
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+});
+
+// HTTPS options
+const httpsOptions = {
+    key: fs.readFileSync(path.join(__dirname, '..', 'certs', 'key.pem')),
+    cert: fs.readFileSync(path.join(__dirname, '..', 'certs', 'cert.pem')),
+};
+
+// Start HTTPS server on port 4000 to match your frontend
+https.createServer(httpsOptions, app).listen(4000, () => {
+    console.log('HTTPS Server running on https://sundayschool.gpc.org:4000');
+});
