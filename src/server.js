@@ -205,7 +205,7 @@ app.post('/sign', async (req, res) => {
             const kid = await dbGet('SELECT name FROM kids WHERE id = ? AND room_id = ?', [kid_id, room_id]);
             if (kid) {
                 await dbRun(
-                    'INSERT INTO sign_in_out_records (kid_id, room_id, caregiver_id, action) VALUES (?, ?, ?, ?)',
+                    'INSERT INTO sign_in_out_records (kid_id, room_id, caregiver_id, action, timestamp) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)',
                     [kid_id, room_id, caregiver_id, action]
                 );
                 actions.push(`${kid.name} has been signed ${action} of ${room.name}`);
@@ -247,71 +247,71 @@ app.post('/teacher/login', async (req, res) => {
 app.get('/attendance/:room_id', requireTeacher, async (req, res) => {
     const { room_id } = req.params;
     try {
-      const attendance = await dbAll(`
-        SELECT 
-          k.id, 
-          k.name AS kid_name,
-          k.food_allergy,
-          (SELECT r.action 
-           FROM sign_in_out_records r 
-           WHERE r.kid_id = k.id 
-           AND r.room_id = ? 
-           AND DATE(r.timestamp) = DATE('now', 'localtime') 
-           ORDER BY r.timestamp DESC 
-           LIMIT 1) AS last_action,
-          (SELECT c2.name 
-           FROM sign_in_out_records r 
-           LEFT JOIN caregivers c2 ON r.caregiver_id = c2.id
-           WHERE r.kid_id = k.id 
-           AND r.room_id = ? 
-           AND DATE(r.timestamp) = DATE('now', 'localtime') 
-           AND r.action = 'in'
-           ORDER BY r.timestamp DESC 
-           LIMIT 1) AS last_signin_caregiver_name,
-          (SELECT c2.contact_number 
-           FROM sign_in_out_records r 
-           LEFT JOIN caregivers c2 ON r.caregiver_id = c2.id
-           WHERE r.kid_id = k.id 
-           AND r.room_id = ? 
-           AND DATE(r.timestamp) = DATE('now', 'localtime') 
-           AND r.action = 'in'
-           ORDER BY r.timestamp DESC 
-           LIMIT 1) AS last_signin_caregiver_contact,
-          (SELECT c2.name 
-           FROM sign_in_out_records r 
-           LEFT JOIN caregivers c2 ON r.caregiver_id = c2.id
-           WHERE r.kid_id = k.id 
-           AND r.room_id = ? 
-           AND DATE(r.timestamp) = DATE('now', 'localtime') 
-           AND r.action = 'out'
-           ORDER BY r.timestamp DESC 
-           LIMIT 1) AS last_signout_caregiver_name,
-          (SELECT c2.contact_number 
-           FROM sign_in_out_records r 
-           LEFT JOIN caregivers c2 ON r.caregiver_id = c2.id
-           WHERE r.kid_id = k.id 
-           AND r.room_id = ? 
-           AND DATE(r.timestamp) = DATE('now', 'localtime') 
-           AND r.action = 'out'
-           ORDER BY r.timestamp DESC 
-           LIMIT 1) AS last_signout_caregiver_contact
-        FROM kids k
-        WHERE k.room_id = ?
-        AND EXISTS (
-          SELECT 1 
-          FROM sign_in_out_records r2 
-          WHERE r2.kid_id = k.id 
-          AND r2.room_id = ? 
-          AND DATE(r2.timestamp) = DATE('now', 'localtime')
-        )`,
-        [room_id, room_id, room_id, room_id, room_id, room_id, room_id]
-      );
-      res.json(attendance);
+        const attendance = await dbAll(`
+            SELECT 
+                k.id, 
+                k.name AS kid_name,
+                k.food_allergy,
+                (SELECT r.action 
+                 FROM sign_in_out_records r 
+                 WHERE r.kid_id = k.id 
+                 AND r.room_id = ? 
+                 AND DATE(r.timestamp) = DATE('now', 'utc') 
+                 ORDER BY r.timestamp DESC 
+                 LIMIT 1) AS last_action,
+                (SELECT c2.name 
+                 FROM sign_in_out_records r 
+                 LEFT JOIN caregivers c2 ON r.caregiver_id = c2.id
+                 WHERE r.kid_id = k.id 
+                 AND r.room_id = ? 
+                 AND DATE(r.timestamp) = DATE('now', 'utc') 
+                 AND r.action = 'in'
+                 ORDER BY r.timestamp DESC 
+                 LIMIT 1) AS last_signin_caregiver_name,
+                (SELECT c2.contact_number 
+                 FROM sign_in_out_records r 
+                 LEFT JOIN caregivers c2 ON r.caregiver_id = c2.id
+                 WHERE r.kid_id = k.id 
+                 AND r.room_id = ? 
+                 AND DATE(r.timestamp) = DATE('now', 'utc') 
+                 AND r.action = 'in'
+                 ORDER BY r.timestamp DESC 
+                 LIMIT 1) AS last_signin_caregiver_contact,
+                (SELECT c2.name 
+                 FROM sign_in_out_records r 
+                 LEFT JOIN caregivers c2 ON r.caregiver_id = c2.id
+                 WHERE r.kid_id = k.id 
+                 AND r.room_id = ? 
+                 AND DATE(r.timestamp) = DATE('now', 'utc') 
+                 AND r.action = 'out'
+                 ORDER BY r.timestamp DESC 
+                 LIMIT 1) AS last_signout_caregiver_name,
+                (SELECT c2.contact_number 
+                 FROM sign_in_out_records r 
+                 LEFT JOIN caregivers c2 ON r.caregiver_id = c2.id
+                 WHERE r.kid_id = k.id 
+                 AND r.room_id = ? 
+                 AND DATE(r.timestamp) = DATE('now', 'utc') 
+                 AND r.action = 'out'
+                 ORDER BY r.timestamp DESC 
+                 LIMIT 1) AS last_signout_caregiver_contact
+            FROM kids k
+            WHERE k.room_id = ?
+            AND EXISTS (
+                SELECT 1 
+                FROM sign_in_out_records r2 
+                WHERE r2.kid_id = k.id 
+                AND r2.room_id = ? 
+                AND DATE(r2.timestamp) = DATE('now', 'utc')
+            )`,
+            [room_id, room_id, room_id, room_id, room_id, room_id, room_id]
+        );
+        res.json(attendance);
     } catch (err) {
-      console.error('Attendance error:', err.message);
-      res.status(500).json({ error: 'Internal server error' });
+        console.error('Attendance error:', err.message);
+        res.status(500).json({ error: 'Internal server error' });
     }
-  });
+});
 
 // QR code generation
 app.get('/qr/:room_id', requireTeacher, async (req, res) => {
