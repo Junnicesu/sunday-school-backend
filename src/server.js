@@ -256,7 +256,7 @@ app.get('/attendance/:room_id', requireTeacher, async (req, res) => {
                  FROM sign_in_out_records r 
                  WHERE r.kid_id = k.id 
                  AND r.room_id = ? 
-                 AND DATE(r.timestamp) = DATE('now', 'utc') 
+                 AND DATE(r.timestamp) = DATE('now') 
                  ORDER BY r.timestamp DESC 
                  LIMIT 1) AS last_action,
                 (SELECT c2.name 
@@ -264,7 +264,7 @@ app.get('/attendance/:room_id', requireTeacher, async (req, res) => {
                  LEFT JOIN caregivers c2 ON r.caregiver_id = c2.id
                  WHERE r.kid_id = k.id 
                  AND r.room_id = ? 
-                 AND DATE(r.timestamp) = DATE('now', 'utc') 
+                 AND DATE(r.timestamp) = DATE('now') 
                  AND r.action = 'in'
                  ORDER BY r.timestamp DESC 
                  LIMIT 1) AS last_signin_caregiver_name,
@@ -273,7 +273,7 @@ app.get('/attendance/:room_id', requireTeacher, async (req, res) => {
                  LEFT JOIN caregivers c2 ON r.caregiver_id = c2.id
                  WHERE r.kid_id = k.id 
                  AND r.room_id = ? 
-                 AND DATE(r.timestamp) = DATE('now', 'utc') 
+                 AND DATE(r.timestamp) = DATE('now') 
                  AND r.action = 'in'
                  ORDER BY r.timestamp DESC 
                  LIMIT 1) AS last_signin_caregiver_contact,
@@ -282,7 +282,7 @@ app.get('/attendance/:room_id', requireTeacher, async (req, res) => {
                  LEFT JOIN caregivers c2 ON r.caregiver_id = c2.id
                  WHERE r.kid_id = k.id 
                  AND r.room_id = ? 
-                 AND DATE(r.timestamp) = DATE('now', 'utc') 
+                 AND DATE(r.timestamp) = DATE('now') 
                  AND r.action = 'out'
                  ORDER BY r.timestamp DESC 
                  LIMIT 1) AS last_signout_caregiver_name,
@@ -291,7 +291,7 @@ app.get('/attendance/:room_id', requireTeacher, async (req, res) => {
                  LEFT JOIN caregivers c2 ON r.caregiver_id = c2.id
                  WHERE r.kid_id = k.id 
                  AND r.room_id = ? 
-                 AND DATE(r.timestamp) = DATE('now', 'utc') 
+                 AND DATE(r.timestamp) = DATE('now') 
                  AND r.action = 'out'
                  ORDER BY r.timestamp DESC 
                  LIMIT 1) AS last_signout_caregiver_contact
@@ -302,7 +302,7 @@ app.get('/attendance/:room_id', requireTeacher, async (req, res) => {
                 FROM sign_in_out_records r2 
                 WHERE r2.kid_id = k.id 
                 AND r2.room_id = ? 
-                AND DATE(r2.timestamp) = DATE('now', 'utc')
+                AND DATE(r2.timestamp) = DATE('now')
             )`,
             [room_id, room_id, room_id, room_id, room_id, room_id, room_id]
         );
@@ -317,7 +317,7 @@ app.get('/attendance/:room_id', requireTeacher, async (req, res) => {
 app.get('/qr/:room_id', requireTeacher, async (req, res) => {
     const { room_id } = req.params;
     try {
-        const url = `http://sundayschool.gpc.org:4000/room/${room_id}`; // Single URL per room
+        const url = `https://sundayschool.gpc.org:4000/room/${room_id}`; // Single URL per room
         const qrCodeUrl = await new Promise((resolve, reject) => {
             qr.toDataURL(url, (err, url) => {
                 if (err) reject(err);
